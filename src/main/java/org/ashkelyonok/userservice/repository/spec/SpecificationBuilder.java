@@ -17,7 +17,7 @@ public class SpecificationBuilder {
         };
     }
 
-    public static <T> Specification<T> like(String field, String value) {
+    public static <T> Specification<T> contains(String field, String value) {
         return (root, query, cb) -> {
             if (value == null || value.trim().isEmpty()) {
                 return cb.conjunction();
@@ -32,15 +32,6 @@ public class SpecificationBuilder {
                 return cb.conjunction();
             }
             return cb.equal(root.get(field), value);
-        };
-    }
-
-    public static <T> Specification<T> joinEqual(String joinTable, String joinField, Object value) {
-        return (root, query, cb) -> {
-            if (value == null) {
-                return cb.conjunction();
-            }
-            return cb.equal(root.join(joinTable).get(joinField), value);
         };
     }
 }

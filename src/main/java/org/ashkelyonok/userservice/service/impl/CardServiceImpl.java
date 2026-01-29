@@ -96,7 +96,7 @@ public class CardServiceImpl implements CardService {
             spec = spec.and(CardSpecification.filterByNumber(number));
         }
         if (holder != null) {
-            spec = spec.and(CardSpecification.filterByHolderAndNumber(holder, null));
+            spec = spec.and(CardSpecification.filterByHolder(holder));
         }
         if (active != null) {
             spec = spec.and(CardSpecification.filterByActive(active));

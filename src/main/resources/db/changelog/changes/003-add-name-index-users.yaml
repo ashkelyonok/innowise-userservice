@@ -1,0 +1,11 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-create-index-users-name
+      author: ashkelyonok
+      changes:
+        - createIndex:
+            tableName: users
+            indexName: idx_users_name
+            columns:
+              - column:
+                  name: name

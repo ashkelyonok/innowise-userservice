@@ -82,7 +82,7 @@ class CardControllerIntegrationTest extends AbstractIntegrationTest {
         CardCreateDto cardDto = new CardCreateDto();
         cardDto.setUserId(testUserId);
         cardDto.setNumber("1234567812345678");
-        cardDto.setExpirationDate("12/30");
+        cardDto.setExpirationDate("12/24");
 
         mockMvc.perform(post("/api/v1/cards")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -95,13 +95,13 @@ class CardControllerIntegrationTest extends AbstractIntegrationTest {
         Long cardId = cardRepository.findAllByUserId(testUserId).get(0).getId();
 
         CardUpdateDto updateDto = new CardUpdateDto();
-        updateDto.setHolder("UPDATED NAME");
+        updateDto.setExpirationDate("11/29");
 
         mockMvc.perform(put("/api/v1/cards/{id}", cardId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateDto)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.holder").value("UPDATED NAME"));
+                .andExpect(jsonPath("$.expirationDate").value("11/29"));
 
         assertThat(cacheManager.getCache("userWithCards").get(testUserId)).isNull();
     }

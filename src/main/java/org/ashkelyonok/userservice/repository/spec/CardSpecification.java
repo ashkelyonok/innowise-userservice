@@ -8,16 +8,14 @@ import org.springframework.data.jpa.domain.Specification;
 public class CardSpecification {
 
     public static Specification<Card> filterByNumber(String number) {
-        return SpecificationBuilder.likeIgnoreCase("number", number);
+        return SpecificationBuilder.contains("number", number);
     }
 
     public static Specification<Card> filterByActive(Boolean active) {
         return SpecificationBuilder.attributeEquals("active", active);
     }
 
-    public static Specification<Card> filterByHolderAndNumber(String holder, String number) {
-        return Specification.<Card>where(null)
-                .and(SpecificationBuilder.likeIgnoreCase("holder", holder))
-                .and(SpecificationBuilder.like("number", number));
+    public static Specification<Card> filterByHolder(String holder) {
+        return SpecificationBuilder.likeIgnoreCase("holder", holder);
     }
 }
