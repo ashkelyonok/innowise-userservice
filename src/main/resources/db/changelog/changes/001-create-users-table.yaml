@@ -1,0 +1,59 @@
+databaseChangeLog:
+- changeSet:
+    id: 001-create-users-table
+    author: ashkelyonok
+    changes:
+      - createTable:
+          tableName: users
+          columns:
+            - column:
+                name: id
+                type: bigint
+                autoIncrement: true
+                constraints:
+                  primaryKey: true
+                  nullable: false
+            - column:
+                name: name
+                type: varchar(50)
+                constraints:
+                  nullable: false
+            - column:
+                name: surname
+                type: varchar(50)
+                constraints:
+                  nullable: false
+            - column:
+                name: birth_date
+                type: date
+                constraints:
+                  nullable: false
+            - column:
+                name: email
+                type: varchar(255)
+                constraints:
+                  nullable: false
+                  unique: true
+            - column:
+                name: active
+                type: boolean
+                defaultValueBoolean: true
+            - column:
+                name: created_at
+                type: timestamp
+            - column:
+                name: updated_at
+                type: timestamp
+
+      - createIndex:
+          tableName: users
+          indexName: idx_users_email
+          columns:
+            - column:
+                name: email
+      - createIndex:
+          tableName: users
+          indexName: idx_users_surname
+          columns:
+            - column:
+                name: surname
