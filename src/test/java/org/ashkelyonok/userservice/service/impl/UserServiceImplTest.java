@@ -10,6 +10,7 @@ import org.ashkelyonok.userservice.model.dto.UserUpdateDto;
 import org.ashkelyonok.userservice.model.dto.UserWithCardsResponseDto;
 import org.ashkelyonok.userservice.model.entity.User;
 import org.ashkelyonok.userservice.repository.UserRepository;
+import org.ashkelyonok.userservice.security.SecurityUtil;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,6 +32,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -42,6 +44,7 @@ class UserServiceImplTest {
     @Mock private UserMapper userMapper;
     @Mock private CacheManager cacheManager;
     @Mock private Cache cache;
+    @Mock private SecurityUtil securityUtil;
 
     @InjectMocks
     private UserServiceImpl userService;
@@ -91,6 +94,7 @@ class UserServiceImplTest {
         User user = new User();
         UserWithCardsResponseDto responseDto = new UserWithCardsResponseDto();
 
+        doNothing().when(securityUtil).checkOwnership(id);
         when(userRepository.findByIdWithCards(id)).thenReturn(Optional.of(user));
         when(userMapper.toWithCardsResponseDto(user)).thenReturn(responseDto);
 
@@ -114,7 +118,10 @@ class UserServiceImplTest {
     void getUserByEmail_Success() {
         String email = "test@test.com";
         User user = new User();
+        user.setId(10L); // Needs ID for ownership check
+
         when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
+        doNothing().when(securityUtil).checkOwnership(user.getId());
         when(userMapper.toResponseDto(user)).thenReturn(new UserResponseDto());
 
         userService.getUserByEmail(email);
@@ -156,6 +163,8 @@ class UserServiceImplTest {
         UserUpdateDto updateDto = new UserUpdateDto();
         User existingUser = new User();
         User savedUser = new User();
+
+        doNothing().when(securityUtil).checkOwnership(id);
 
         when(userRepository.findById(id)).thenReturn(Optional.of(existingUser));
         when(userRepository.save(existingUser)).thenReturn(savedUser);

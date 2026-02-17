@@ -1,0 +1,5 @@
+jwt:
+  secret: test_secret_key_must_be_very_long_for_security_123_456_789
+spring:
+  cache:
+    type: simple

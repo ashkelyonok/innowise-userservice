@@ -12,6 +12,7 @@ import org.ashkelyonok.userservice.model.entity.Card;
 import org.ashkelyonok.userservice.model.entity.User;
 import org.ashkelyonok.userservice.repository.CardRepository;
 import org.ashkelyonok.userservice.repository.UserRepository;
+import org.ashkelyonok.userservice.security.SecurityUtil;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,6 +43,7 @@ class CardServiceImplTest {
     @Mock private CardMapper cardMapper;
     @Mock private CacheManager cacheManager;
     @Mock private Cache cache;
+    @Mock private SecurityUtil securityUtil;
 
     @InjectMocks
     private CardServiceImpl cardService;
@@ -56,6 +58,7 @@ class CardServiceImplTest {
         user.setName("A");
         user.setSurname("B");
 
+        doNothing().when(securityUtil).checkOwnership(userId);
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(cardRepository.countByUserId(userId)).thenReturn(0);
         when(cardMapper.toEntity(dto)).thenReturn(new Card());
@@ -99,7 +102,14 @@ class CardServiceImplTest {
     @DisplayName("Get Card By ID: Success")
     void getCardById_Success() {
         Long id = 1L;
-        when(cardRepository.findByIdWithUser(id)).thenReturn(Optional.of(new Card()));
+        User user = new User();
+        user.setId(100L);
+        Card card = new Card();
+        card.setUser(user);
+
+        when(cardRepository.findByIdWithUser(id)).thenReturn(Optional.of(card));
+
+        doNothing().when(securityUtil).checkOwnership(user.getId());
         when(cardMapper.toDto(any())).thenReturn(new CardResponseDto());
 
         cardService.getCardById(id);
@@ -119,6 +129,9 @@ class CardServiceImplTest {
     @DisplayName("Get Cards By User ID: Success")
     void getCardsByUserId_Success() {
         Long userId = 1L;
+
+        doNothing().when(securityUtil).checkOwnership(userId);
+
         when(userRepository.existsById(userId)).thenReturn(true);
         when(cardRepository.findAllByUserId(userId)).thenReturn(List.of(new Card()));
 
@@ -174,6 +187,7 @@ class CardServiceImplTest {
         Long userId = 100L;
 
         when(cardRepository.findUserIdByCardId(id)).thenReturn(Optional.of(userId));
+        doNothing().when(securityUtil).checkOwnership(userId);
         when(cacheManager.getCache(anyString())).thenReturn(cache);
 
         cardService.updateActiveStatus(id, true);
@@ -199,8 +213,12 @@ class CardServiceImplTest {
         CardUpdateDto dto = new CardUpdateDto();
         Card card = new Card();
         card.setId(cardId);
+        User user = new User();
+        user.setId(100L);
+        card.setUser(user);
 
         when(cardRepository.findById(cardId)).thenReturn(Optional.of(card));
+        doNothing().when(securityUtil).checkOwnership(user.getId());
         when(cardRepository.save(card)).thenReturn(card);
         when(cardMapper.toDto(any())).thenReturn(new CardResponseDto());
 
@@ -229,6 +247,7 @@ class CardServiceImplTest {
         Long userId = 100L;
 
         when(cardRepository.findUserIdByCardId(cardId)).thenReturn(Optional.of(userId));
+        doNothing().when(securityUtil).checkOwnership(userId);
         when(cacheManager.getCache(anyString())).thenReturn(cache);
 
         cardService.deleteCard(cardId);
@@ -254,6 +273,7 @@ class CardServiceImplTest {
         Long userId = 100L;
 
         when(cardRepository.findUserIdByCardId(cardId)).thenReturn(Optional.of(userId));
+        doNothing().when(securityUtil).checkOwnership(userId);
         when(cacheManager.getCache(anyString())).thenReturn(null);
 
         cardService.deleteCard(cardId);
