@@ -27,6 +27,12 @@ public interface UserControllerApi {
     @ApiResponse(responseCode = "404", description = "User not found")
     ResponseEntity<UserWithCardsResponseDto> getUserById(Long id);
 
+    @Operation(summary = "Search user", description = "Finds a user by specific criteria (currently supports email).")
+    @ApiResponse(responseCode = "200", description = "User found")
+    @ApiResponse(responseCode = "404", description = "User not found")
+    ResponseEntity<UserResponseDto> searchUser(
+            @Parameter(description = "Email address to search for", required = true) String email);
+
     @Operation(summary = "Get all users", description = "Returns a paginated list of users (Light DTOs). Useful for Admin panels.")
     ResponseEntity<PageResponseDto<UserResponseDto>> getAllUsers(
             @Parameter(description = "Filter by name") String name,

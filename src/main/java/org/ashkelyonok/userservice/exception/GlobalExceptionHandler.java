@@ -7,6 +7,8 @@ import org.ashkelyonok.userservice.model.dto.error.ValidationErrorResponseDto;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -52,10 +54,10 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, "Max Cards Limit Exceeded", ex.getMessage(), request);
     }
 
-    @ExceptionHandler(UnauthorizedAccessException.class)
-    public ResponseEntity<ErrorResponseDto> handleUnauthorizedAccessException(UnauthorizedAccessException ex, HttpServletRequest request) {
-        log.warn("Unauthorized access: {}", ex.getMessage());
-        return buildResponse(HttpStatus.FORBIDDEN, "Access Denied", ex.getMessage(), request);
+    @ExceptionHandler({AccessDeniedException.class, AuthorizationDeniedException.class})
+    public ResponseEntity<ErrorResponseDto> handleSpringSecurityDenied(Exception ex, HttpServletRequest request) {
+        log.warn("Security check failed: {}", ex.getMessage());
+        return buildResponse(HttpStatus.FORBIDDEN, "Access Denied", "You do not have permission to perform this action.", request);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

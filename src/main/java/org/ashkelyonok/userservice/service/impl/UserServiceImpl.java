@@ -13,6 +13,7 @@ import org.ashkelyonok.userservice.model.dto.UserWithCardsResponseDto;
 import org.ashkelyonok.userservice.model.entity.User;
 import org.ashkelyonok.userservice.repository.UserRepository;
 import org.ashkelyonok.userservice.repository.spec.UserSpecification;
+import org.ashkelyonok.userservice.security.SecurityUtil;
 import org.ashkelyonok.userservice.service.UserService;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
@@ -33,6 +34,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final CacheManager cacheManager;
+    private final SecurityUtil securityUtil;
 
     @Override
     public UserResponseDto createUser(UserCreateDto userDto) {
@@ -51,6 +53,8 @@ public class UserServiceImpl implements UserService {
     @Transactional(readOnly=true)
     @Cacheable(value = "userWithCards", key = "#id")
     public UserWithCardsResponseDto getUserById(Long id) {
+        securityUtil.checkOwnership(id);
+
         return userRepository.findByIdWithCards(id)
                 .map(userMapper::toWithCardsResponseDto)
                 .orElseThrow(() -> new UserNotFoundException(id));
@@ -60,9 +64,12 @@ public class UserServiceImpl implements UserService {
     @Transactional(readOnly=true)
     @Cacheable(value = "usersByEmail", key = "#email")
     public UserResponseDto getUserByEmail(String email) {
-        return userRepository.findByEmail(email)
-                .map(userMapper::toResponseDto)
+        User user = userRepository.findByEmail(email)
                 .orElseThrow(()-> new UserNotFoundException("email", email));
+
+        securityUtil.checkOwnership(user.getId());
+
+        return userMapper.toResponseDto(user);
     }
 
     @Override
@@ -89,6 +96,8 @@ public class UserServiceImpl implements UserService {
             @CacheEvict(value = "usersByEmail", key = "#result.email")
     })
     public UserResponseDto updateUser(Long id, UserUpdateDto userDto) {
+        securityUtil.checkOwnership(id);
+
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException(id));
 
@@ -124,16 +133,20 @@ public class UserServiceImpl implements UserService {
     private void evictUserCaches(Long id, String email) {
         if (cacheManager == null) return;
 
-        var idCache = cacheManager.getCache("userWithCards");
-        if (idCache != null) {
-            idCache.evict(id);
-        }
-
-        if (email != null) {
-            var emailCache = cacheManager.getCache("usersByEmail");
-            if (emailCache != null) {
-                emailCache.evict(email);
+        try {
+            var idCache = cacheManager.getCache("userWithCards");
+            if (idCache != null) {
+                idCache.evict(id);
             }
+
+            if (email != null) {
+                var emailCache = cacheManager.getCache("usersByEmail");
+                if (emailCache != null) {
+                    emailCache.evict(email);
+                }
+            }
+        } catch (RuntimeException e) {
+            log.error("Redis is down! Failed to manually evict caches for userId: {} and email: {}. Error: {}", id, email, e.getMessage());
         }
     }
 }

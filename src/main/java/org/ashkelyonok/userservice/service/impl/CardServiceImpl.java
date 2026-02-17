@@ -15,6 +15,7 @@ import org.ashkelyonok.userservice.model.entity.User;
 import org.ashkelyonok.userservice.repository.CardRepository;
 import org.ashkelyonok.userservice.repository.UserRepository;
 import org.ashkelyonok.userservice.repository.spec.CardSpecification;
+import org.ashkelyonok.userservice.security.SecurityUtil;
 import org.ashkelyonok.userservice.service.CardService;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
@@ -37,6 +38,7 @@ public class CardServiceImpl implements CardService {
     private final CardMapper cardMapper;
 
     private final CacheManager cacheManager;
+    private final SecurityUtil securityUtil;
 
     @Override
     @Caching(evict = {
@@ -44,6 +46,8 @@ public class CardServiceImpl implements CardService {
             @CacheEvict(value = "userCards", key = "#cardDto.userId")
     })
     public CardResponseDto createCard(CardCreateDto cardDto) {
+        securityUtil.checkOwnership(cardDto.getUserId());
+
         Long userId = cardDto.getUserId();
 
         User user = userRepository.findById(userId)
@@ -70,15 +74,20 @@ public class CardServiceImpl implements CardService {
     @Transactional(readOnly = true)
     @Cacheable(value = "cards", key = "#id")
     public CardResponseDto getCardById(Long id) {
-        return cardRepository.findByIdWithUser(id)
-                .map(cardMapper::toDto)
+        Card card = cardRepository.findByIdWithUser(id)
                 .orElseThrow(() -> new CardNotFoundException(id));
+
+        securityUtil.checkOwnership(card.getUser().getId());
+
+        return cardMapper.toDto(card);
     }
 
     @Override
     @Transactional(readOnly = true)
     @Cacheable(value = "userCards", key = "#userId")
     public List<CardResponseDto> getCardsByUserId(Long userId) {
+        securityUtil.checkOwnership(userId);
+
         if (!userRepository.existsById(userId)) {
             throw new UserNotFoundException(userId);
         }
@@ -120,6 +129,8 @@ public class CardServiceImpl implements CardService {
         Long userId = cardRepository.findUserIdByCardId(id)
                 .orElseThrow(() -> new CardNotFoundException(id));
 
+        securityUtil.checkOwnership(userId);
+
         cardRepository.updateActiveStatus(id, active);
 
         evictCardCaches(id, userId);
@@ -135,6 +146,8 @@ public class CardServiceImpl implements CardService {
         Card card = cardRepository.findById(id)
                 .orElseThrow(() -> new CardNotFoundException(id));
 
+        securityUtil.checkOwnership(card.getUser().getId());
+
         cardMapper.updateCardFromDto(dto, card);
         log.info("Card updated: {}", id);
 
@@ -146,6 +159,8 @@ public class CardServiceImpl implements CardService {
         Long userId = cardRepository.findUserIdByCardId(id)
                 .orElseThrow(() -> new CardNotFoundException(id));
 
+        securityUtil.checkOwnership(userId);
+
         cardRepository.deleteById(id);
         log.info("Card deleted: {}", id);
 
@@ -155,15 +170,19 @@ public class CardServiceImpl implements CardService {
     private void evictCardCaches(Long cardId, Long userId) {
         if (cacheManager == null) return;
 
-        var cardCache = cacheManager.getCache("cards");
-        if (cardCache != null) cardCache.evict(cardId);
+        try {
+            var cardCache = cacheManager.getCache("cards");
+            if (cardCache != null) cardCache.evict(cardId);
 
-        if (userId != null) {
-            var userWithCards = cacheManager.getCache("userWithCards");
-            if (userWithCards != null) userWithCards.evict(userId);
+            if (userId != null) {
+                var userWithCards = cacheManager.getCache("userWithCards");
+                if (userWithCards != null) userWithCards.evict(userId);
 
-            var userCards = cacheManager.getCache("userCards");
-            if (userCards != null) userCards.evict(userId);
+                var userCards = cacheManager.getCache("userCards");
+                if (userCards != null) userCards.evict(userId);
+            }
+        } catch (RuntimeException e) {
+            log.error("Redis is down! Failed to manually evict caches for cardId: {} and userId: {}. Error: {}", cardId, userId, e.getMessage());
         }
     }
 }

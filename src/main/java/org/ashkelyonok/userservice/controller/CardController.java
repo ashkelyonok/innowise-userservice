@@ -14,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -37,6 +38,7 @@ public class CardController implements CardControllerApi {
 
     @Override
     @PostMapping
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<CardResponseDto> createCard(@Valid @RequestBody CardCreateDto cardDto) {
         log.info("Request to issue card for User ID: {}", cardDto.getUserId());
         CardResponseDto createdCard = cardService.createCard(cardDto);
@@ -45,6 +47,7 @@ public class CardController implements CardControllerApi {
 
     @Override
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<CardResponseDto> getCardById(@PathVariable Long id) {
         log.debug("Fetching card with ID: {}", id);
         return ResponseEntity.ok(cardService.getCardById(id));
@@ -52,6 +55,7 @@ public class CardController implements CardControllerApi {
 
     @Override
     @GetMapping("/user/{userId}")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<List<CardResponseDto>> getCardsByUserId(@PathVariable Long userId) {
         log.debug("Fetching cards for User ID: {}", userId);
         return ResponseEntity.ok(cardService.getCardsByUserId(userId));
@@ -59,6 +63,7 @@ public class CardController implements CardControllerApi {
 
     @Override
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PageResponseDto<CardResponseDto>> getAllCards(
             @RequestParam(required = false) String number,
             @RequestParam(required = false) String holder,
@@ -79,6 +84,7 @@ public class CardController implements CardControllerApi {
 
     @Override
     @PatchMapping("/{id}")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<Void> updateActiveStatus(
             @PathVariable Long id,
             @Valid @RequestBody StatusUpdateDto statusDto) {
@@ -89,6 +95,7 @@ public class CardController implements CardControllerApi {
 
     @Override
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<Void> deleteCard(@PathVariable Long id) {
         log.info("Deleting card with ID: {}", id);
         cardService.deleteCard(id);

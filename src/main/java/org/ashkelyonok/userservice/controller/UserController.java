@@ -15,6 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -45,13 +46,23 @@ public class UserController implements UserControllerApi {
 
     @Override
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<UserWithCardsResponseDto> getUserById(@PathVariable Long id) {
         log.debug("Fetching user with ID: {}", id);
         return ResponseEntity.ok(userService.getUserById(id));
     }
 
     @Override
+    @GetMapping("/search")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public ResponseEntity<UserResponseDto> searchUser(@RequestParam("email") String email) {
+        log.debug("Received request to search user by email: {}", email);
+        return ResponseEntity.ok(userService.getUserByEmail(email));
+    }
+
+    @Override
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PageResponseDto<UserResponseDto>> getAllUsers(
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String surname,
@@ -71,6 +82,7 @@ public class UserController implements UserControllerApi {
 
     @Override
     @PatchMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> updateActiveStatus(
             @PathVariable Long id,
             @Valid @RequestBody StatusUpdateDto statusDto) {
@@ -81,6 +93,7 @@ public class UserController implements UserControllerApi {
 
     @Override
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         log.info("Deleting user with ID: {}", id);
         userService.deleteUser(id);
