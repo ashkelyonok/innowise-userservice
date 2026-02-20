@@ -34,4 +34,13 @@ public class SpecificationBuilder {
             return cb.equal(root.get(field), value);
         };
     }
+
+    public static <T> Specification<T> attributeIn(String field, java.util.Collection<?> values) {
+        return (root, query, cb) -> {
+            if (values == null || values.isEmpty()) {
+                return cb.conjunction();
+            }
+            return root.get(field).in(values);
+        };
+    }
 }

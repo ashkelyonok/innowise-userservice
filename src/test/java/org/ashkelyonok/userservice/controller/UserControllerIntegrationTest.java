@@ -25,6 +25,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -51,7 +52,6 @@ class UserControllerIntegrationTest extends AbstractIntegrationTest {
     private SecurityUtil securityUtil;
 
     @BeforeEach
-        // Add this
     void setupSecurity() {
         doNothing().when(securityUtil).checkOwnership(any());
     }
@@ -196,17 +196,20 @@ class UserControllerIntegrationTest extends AbstractIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(createDto)));
 
-        mockMvc.perform(get("/api/v1/users/search")
+        mockMvc.perform(get("/api/v1/users")
                         .param("email", "search.me@test.com"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value("search.me@test.com"))
-                .andExpect(jsonPath("$.name").value("Search"));
+                .andExpect(jsonPath("$.content[0].email").value("search.me@test.com"))
+                .andExpect(jsonPath("$.content[0].name").value("Search"));
     }
 
     @Test
     @DisplayName("Get All Users: Filtered (Success)")
     @WithMockUser(username = "admin", roles = "ADMIN")
     void testGetAllUsers_Success() throws Exception {
+        when(securityUtil.isAdmin()).thenReturn(true);
+        when(securityUtil.getAuthenticatedUserId()).thenReturn(1L);
+
         UserCreateDto user1 = new UserCreateDto();
         user1.setEmail("admin.view1@test.com");
         user1.setName("Alice");

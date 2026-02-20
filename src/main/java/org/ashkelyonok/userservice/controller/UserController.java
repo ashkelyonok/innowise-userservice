@@ -7,10 +7,12 @@ import org.ashkelyonok.userservice.controller.api.UserControllerApi;
 import org.ashkelyonok.userservice.model.dto.PageResponseDto;
 import org.ashkelyonok.userservice.model.dto.StatusUpdateDto;
 import org.ashkelyonok.userservice.model.dto.UserCreateDto;
+import org.ashkelyonok.userservice.model.dto.UserFilterDto;
 import org.ashkelyonok.userservice.model.dto.UserResponseDto;
 import org.ashkelyonok.userservice.model.dto.UserUpdateDto;
 import org.ashkelyonok.userservice.model.dto.UserWithCardsResponseDto;
 import org.ashkelyonok.userservice.service.UserService;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
@@ -24,7 +26,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Slf4j
@@ -53,22 +54,13 @@ public class UserController implements UserControllerApi {
     }
 
     @Override
-    @GetMapping("/search")
-    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ResponseEntity<UserResponseDto> searchUser(@RequestParam("email") String email) {
-        log.debug("Received request to search user by email: {}", email);
-        return ResponseEntity.ok(userService.getUserByEmail(email));
-    }
-
-    @Override
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<PageResponseDto<UserResponseDto>> getAllUsers(
-            @RequestParam(required = false) String name,
-            @RequestParam(required = false) String surname,
+            @ParameterObject UserFilterDto filter,
             @PageableDefault(size = 20) Pageable pageable) {
-        log.debug("Fetching users page with filter - name: {}, surname: {}", name, surname);
-        return ResponseEntity.ok(userService.getAllUsers(name, surname, pageable));
+        log.debug("Fetching users page with filter: {}", filter);
+        return ResponseEntity.ok(userService.getAllUsers(filter, pageable));
     }
 
     @Override

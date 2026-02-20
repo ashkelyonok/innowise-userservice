@@ -5,6 +5,7 @@ import org.ashkelyonok.userservice.exception.UserNotFoundException;
 import org.ashkelyonok.userservice.mapper.UserMapper;
 import org.ashkelyonok.userservice.model.dto.PageResponseDto;
 import org.ashkelyonok.userservice.model.dto.UserCreateDto;
+import org.ashkelyonok.userservice.model.dto.UserFilterDto;
 import org.ashkelyonok.userservice.model.dto.UserResponseDto;
 import org.ashkelyonok.userservice.model.dto.UserUpdateDto;
 import org.ashkelyonok.userservice.model.dto.UserWithCardsResponseDto;
@@ -114,46 +115,58 @@ class UserServiceImplTest {
     }
 
     @Test
-    @DisplayName("Get User By Email: Success")
-    void getUserByEmail_Success() {
-        String email = "test@test.com";
-        User user = new User();
-        user.setId(10L); // Needs ID for ownership check
-
-        when(userRepository.findByEmail(email)).thenReturn(Optional.of(user));
-        doNothing().when(securityUtil).checkOwnership(user.getId());
-        when(userMapper.toResponseDto(user)).thenReturn(new UserResponseDto());
-
-        userService.getUserByEmail(email);
-
-        verify(userRepository).findByEmail(email);
-    }
-
-    @Test
-    @DisplayName("Get User By Email: Not Found")
-    void getUserByEmail_NotFound() {
-        String email = "missing@test.com";
-        when(userRepository.findByEmail(email)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> userService.getUserByEmail(email))
-                .isInstanceOf(UserNotFoundException.class);
-    }
-
-    @Test
-    @DisplayName("Get All Users: Returns Paged Result")
-    void getAllUsers_Success() {
+    @DisplayName("Get All Users: Admin Can Search By Name")
+    void getAllUsers_AdminSearchByName() {
         Pageable pageable = Pageable.unpaged();
+        UserFilterDto filter = UserFilterDto.builder().name("John").build();
         User user = new User();
+        user.setId(1L);
         Page<User> page = new PageImpl<>(List.of(user));
 
+        when(securityUtil.isAdmin()).thenReturn(true);
         when(userRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(page);
-
         when(userMapper.toResponseDto(user)).thenReturn(new UserResponseDto());
 
-        PageResponseDto<UserResponseDto> result = userService.getAllUsers("Name", "Surname", pageable);
+        PageResponseDto<UserResponseDto> result = userService.getAllUsers(filter, pageable);
 
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getTotalElements()).isEqualTo(1);
+        verify(securityUtil, never()).checkOwnership(any());
+    }
+
+    @Test
+    @DisplayName("Get All Users: User Can Search Self By Email")
+    void getAllUsers_UserSearchSelfByEmail() {
+        Pageable pageable = Pageable.unpaged();
+        UserFilterDto filter = UserFilterDto.builder().email("test@test.com").build();
+        User user = new User();
+        user.setId(1L);
+        Page<User> page = new PageImpl<>(List.of(user));
+
+        when(securityUtil.isAdmin()).thenReturn(false);
+        when(securityUtil.getAuthenticatedUserId()).thenReturn(1L);
+        when(userRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(page);
+        doNothing().when(securityUtil).checkOwnership(1L);
+        when(userMapper.toResponseDto(user)).thenReturn(new UserResponseDto());
+
+        PageResponseDto<UserResponseDto> result = userService.getAllUsers(filter, pageable);
+
+        assertThat(result.getContent()).hasSize(1);
+        verify(securityUtil).checkOwnership(1L);
+    }
+
+    @Test
+    @DisplayName("Get All Users: User Cannot Perform Broad Search")
+    void getAllUsers_UserBroadSearchDenied() {
+        Pageable pageable = Pageable.unpaged();
+        UserFilterDto filter = UserFilterDto.builder().name("John").build();
+
+        when(securityUtil.isAdmin()).thenReturn(false);
+        when(securityUtil.getAuthenticatedUserId()).thenReturn(1L);
+
+        assertThatThrownBy(() -> userService.getAllUsers(filter, pageable))
+                .isInstanceOf(org.springframework.security.access.AccessDeniedException.class)
+                .hasMessageContaining("Access Denied");
     }
 
     @Test

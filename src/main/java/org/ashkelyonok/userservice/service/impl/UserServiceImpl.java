@@ -7,6 +7,7 @@ import org.ashkelyonok.userservice.exception.UserNotFoundException;
 import org.ashkelyonok.userservice.mapper.UserMapper;
 import org.ashkelyonok.userservice.model.dto.PageResponseDto;
 import org.ashkelyonok.userservice.model.dto.UserCreateDto;
+import org.ashkelyonok.userservice.model.dto.UserFilterDto;
 import org.ashkelyonok.userservice.model.dto.UserResponseDto;
 import org.ashkelyonok.userservice.model.dto.UserUpdateDto;
 import org.ashkelyonok.userservice.model.dto.UserWithCardsResponseDto;
@@ -62,26 +63,28 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly=true)
-    @Cacheable(value = "usersByEmail", key = "#email")
-    public UserResponseDto getUserByEmail(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(()-> new UserNotFoundException("email", email));
+    public PageResponseDto<UserResponseDto> getAllUsers(UserFilterDto filter, Pageable pageable) {
+        if (!securityUtil.isAdmin()) {
+            Long currentUserId = securityUtil.getAuthenticatedUserId();
 
-        securityUtil.checkOwnership(user.getId());
+            boolean isSearchingSelfById = filter.getIds() != null
+                    && filter.getIds().size() == 1
+                    && filter.getIds().contains(currentUserId);
 
-        return userMapper.toResponseDto(user);
-    }
+            if (!isSearchingSelfById && filter.getEmail() == null) {
+                throw new org.springframework.security.access.AccessDeniedException("Access Denied: You cannot filter the user directory.");
+            }
+        }
 
-    @Override
-    @Transactional(readOnly=true)
-    public PageResponseDto<UserResponseDto> getAllUsers(String name, String surname, Pageable pageable) {
-        Specification<User> spec = UserSpecification.filterByNameAndSurname(name, surname);
+        Specification<User> spec = UserSpecification.filterBy(filter);
         Page<User> page = userRepository.findAll(spec, pageable);
 
+        if (!securityUtil.isAdmin()) {
+            page.getContent().forEach(user -> securityUtil.checkOwnership(user.getId()));
+        }
+
         return PageResponseDto.<UserResponseDto>builder()
-                .content(page.getContent().stream()
-                        .map(userMapper::toResponseDto)
-                        .toList())
+                .content(page.getContent().stream().map(userMapper::toResponseDto).toList())
                 .pageNumber(page.getNumber())
                 .pageSize(page.getSize())
                 .totalElements(page.getTotalElements())

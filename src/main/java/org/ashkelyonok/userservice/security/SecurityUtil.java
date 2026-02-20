@@ -35,17 +35,23 @@ public class SecurityUtil {
     }
 
     /**
+     * Checks if the current user has the ROLE_ADMIN.
+     */
+    public boolean isAdmin() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) return false;
+
+        return authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(role -> role.equals("ROLE_ADMIN"));
+    }
+
+    /**
      * Enforces that the current user owns the resource, OR is an Admin.
      * @param resourceOwnerId The ID of the user who owns the data.
      */
     public void checkOwnership(Long resourceOwnerId) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
-        boolean isAdmin = authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .anyMatch(role -> role.equals("ROLE_ADMIN"));
-
-        if (isAdmin) {
+        if (isAdmin()) {
             return;
         }
 
