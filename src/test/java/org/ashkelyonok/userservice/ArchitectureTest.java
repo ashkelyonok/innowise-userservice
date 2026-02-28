@@ -22,6 +22,7 @@ public class ArchitectureTest {
                     "jakarta..",
                     "org.slf4j..",
                     "io.swagger..",
+                    "org.springdoc..",
                     "lombok.."
             );
 

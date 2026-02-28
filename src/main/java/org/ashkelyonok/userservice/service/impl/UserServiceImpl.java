@@ -7,12 +7,14 @@ import org.ashkelyonok.userservice.exception.UserNotFoundException;
 import org.ashkelyonok.userservice.mapper.UserMapper;
 import org.ashkelyonok.userservice.model.dto.PageResponseDto;
 import org.ashkelyonok.userservice.model.dto.UserCreateDto;
+import org.ashkelyonok.userservice.model.dto.UserFilterDto;
 import org.ashkelyonok.userservice.model.dto.UserResponseDto;
 import org.ashkelyonok.userservice.model.dto.UserUpdateDto;
 import org.ashkelyonok.userservice.model.dto.UserWithCardsResponseDto;
 import org.ashkelyonok.userservice.model.entity.User;
 import org.ashkelyonok.userservice.repository.UserRepository;
 import org.ashkelyonok.userservice.repository.spec.UserSpecification;
+import org.ashkelyonok.userservice.security.SecurityUtil;
 import org.ashkelyonok.userservice.service.UserService;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
@@ -33,6 +35,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final CacheManager cacheManager;
+    private final SecurityUtil securityUtil;
 
     @Override
     public UserResponseDto createUser(UserCreateDto userDto) {
@@ -51,6 +54,8 @@ public class UserServiceImpl implements UserService {
     @Transactional(readOnly=true)
     @Cacheable(value = "userWithCards", key = "#id")
     public UserWithCardsResponseDto getUserById(Long id) {
+        securityUtil.checkOwnership(id);
+
         return userRepository.findByIdWithCards(id)
                 .map(userMapper::toWithCardsResponseDto)
                 .orElseThrow(() -> new UserNotFoundException(id));
@@ -58,23 +63,28 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly=true)
-    @Cacheable(value = "usersByEmail", key = "#email")
-    public UserResponseDto getUserByEmail(String email) {
-        return userRepository.findByEmail(email)
-                .map(userMapper::toResponseDto)
-                .orElseThrow(()-> new UserNotFoundException("email", email));
-    }
+    public PageResponseDto<UserResponseDto> getAllUsers(UserFilterDto filter, Pageable pageable) {
+        if (!securityUtil.isAdmin()) {
+            Long currentUserId = securityUtil.getAuthenticatedUserId();
 
-    @Override
-    @Transactional(readOnly=true)
-    public PageResponseDto<UserResponseDto> getAllUsers(String name, String surname, Pageable pageable) {
-        Specification<User> spec = UserSpecification.filterByNameAndSurname(name, surname);
+            boolean isSearchingSelfById = filter.getIds() != null
+                    && filter.getIds().size() == 1
+                    && filter.getIds().contains(currentUserId);
+
+            if (!isSearchingSelfById && filter.getEmail() == null) {
+                throw new org.springframework.security.access.AccessDeniedException("Access Denied: You cannot filter the user directory.");
+            }
+        }
+
+        Specification<User> spec = UserSpecification.filterBy(filter);
         Page<User> page = userRepository.findAll(spec, pageable);
 
+        if (!securityUtil.isAdmin()) {
+            page.getContent().forEach(user -> securityUtil.checkOwnership(user.getId()));
+        }
+
         return PageResponseDto.<UserResponseDto>builder()
-                .content(page.getContent().stream()
-                        .map(userMapper::toResponseDto)
-                        .toList())
+                .content(page.getContent().stream().map(userMapper::toResponseDto).toList())
                 .pageNumber(page.getNumber())
                 .pageSize(page.getSize())
                 .totalElements(page.getTotalElements())
@@ -89,6 +99,8 @@ public class UserServiceImpl implements UserService {
             @CacheEvict(value = "usersByEmail", key = "#result.email")
     })
     public UserResponseDto updateUser(Long id, UserUpdateDto userDto) {
+        securityUtil.checkOwnership(id);
+
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException(id));
 
@@ -124,16 +136,20 @@ public class UserServiceImpl implements UserService {
     private void evictUserCaches(Long id, String email) {
         if (cacheManager == null) return;
 
-        var idCache = cacheManager.getCache("userWithCards");
-        if (idCache != null) {
-            idCache.evict(id);
-        }
-
-        if (email != null) {
-            var emailCache = cacheManager.getCache("usersByEmail");
-            if (emailCache != null) {
-                emailCache.evict(email);
+        try {
+            var idCache = cacheManager.getCache("userWithCards");
+            if (idCache != null) {
+                idCache.evict(id);
             }
+
+            if (email != null) {
+                var emailCache = cacheManager.getCache("usersByEmail");
+                if (emailCache != null) {
+                    emailCache.evict(email);
+                }
+            }
+        } catch (RuntimeException e) {
+            log.error("Redis is down! Failed to manually evict caches for userId: {} and email: {}. Error: {}", id, email, e.getMessage());
         }
     }
 }

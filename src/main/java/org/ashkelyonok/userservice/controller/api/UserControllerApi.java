@@ -7,9 +7,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.ashkelyonok.userservice.model.dto.PageResponseDto;
 import org.ashkelyonok.userservice.model.dto.StatusUpdateDto;
 import org.ashkelyonok.userservice.model.dto.UserCreateDto;
+import org.ashkelyonok.userservice.model.dto.UserFilterDto;
 import org.ashkelyonok.userservice.model.dto.UserResponseDto;
 import org.ashkelyonok.userservice.model.dto.UserUpdateDto;
 import org.ashkelyonok.userservice.model.dto.UserWithCardsResponseDto;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 
@@ -27,10 +29,11 @@ public interface UserControllerApi {
     @ApiResponse(responseCode = "404", description = "User not found")
     ResponseEntity<UserWithCardsResponseDto> getUserById(Long id);
 
-    @Operation(summary = "Get all users", description = "Returns a paginated list of users (Light DTOs). Useful for Admin panels.")
+    @Operation(summary = "Search & Filter Users", description = "RESTful endpoint to filter users by IDs, Email, Name, or Surname.")
+    @ApiResponse(responseCode = "200", description = "Page of users retrieved successfully")
+    @ApiResponse(responseCode = "403", description = "Access Denied (Users cannot filter other users' data)")
     ResponseEntity<PageResponseDto<UserResponseDto>> getAllUsers(
-            @Parameter(description = "Filter by name") String name,
-            @Parameter(description = "Filter by surname") String surname,
+            @ParameterObject UserFilterDto filter,
             @Parameter(hidden = true) Pageable pageable);
 
     @Operation(summary = "Update user profile", description = "Updates allowed fields (Name, Surname, Birthdate). Email cannot be changed here.")
